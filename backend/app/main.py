@@ -26,7 +26,8 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     description="Production-ready AI CV Analyzer SaaS",
-    version="2.0.0"
+    version="2.0.0",
+    root_path="/_/backend" # Automatically handle the Vercel rewrite prefix
 )
 
 # Initialize Database
@@ -44,15 +45,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routes for local development (no prefix)
+# Include routes (root_path will handle the /_/backend prefix automatically)
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(analyze_router, tags=["Analysis"])
 app.include_router(upload_router, tags=["Upload"])
 
-# Include routes for Vercel production (with /_/backend prefix matching rewrites)
-app.include_router(auth_router, prefix="/_/backend/auth", tags=["Authentication"])
-app.include_router(analyze_router, prefix="/_/backend", tags=["Analysis"])
-app.include_router(upload_router, prefix="/_/backend", tags=["Upload"])
+@app.get("/debug-routes")
+async def debug_routes():
+    return [{"path": route.path, "name": route.name} for route in app.routes]
 
 @app.get("/", tags=["Health"])
 async def health_check():
