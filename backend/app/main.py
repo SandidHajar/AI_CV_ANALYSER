@@ -1,5 +1,6 @@
 import logging
 import io
+import os
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,14 +22,15 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-# Settings will be loaded inside app initialization
-# settings = get_settings()
+
+# Detect if running on Vercel (Vercel sets the VERCEL env var automatically)
+IS_VERCEL = os.environ.get("VERCEL") is not None
 
 app = FastAPI(
-    title="AI CV Analyzer SaaS", # Static title to avoid crash
+    title="AI CV Analyzer SaaS",
     description="Production-ready AI CV Analyzer SaaS",
     version="2.0.0",
-    root_path="/_/backend"
+    root_path="/_/backend" if IS_VERCEL else ""
 )
 
 # Initialize Database
@@ -39,13 +41,12 @@ def on_startup():
         logger.info("Database initialized")
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
-        # We don't raise here to allow the app to start and possibly return debug info
 
 # Enable CORS for frontend integration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this to your frontend domain
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
