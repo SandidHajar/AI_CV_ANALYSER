@@ -33,8 +33,12 @@ app = FastAPI(
 # Initialize Database
 @app.on_event("startup")
 def on_startup():
-    init_db()
-    logger.info("Database initialized")
+    try:
+        init_db()
+        logger.info("Database initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        # We don't raise here to allow the app to start and possibly return debug info
 
 # Enable CORS for frontend integration
 app.add_middleware(
