@@ -6,6 +6,14 @@ class CVAnalyzeRequest(BaseModel):
     cv_text: str = Field(..., min_length=10, description="Raw CV text")
     weaknesses: Optional[List[str]] = Field(default=None, description="Optional weaknesses")
 
+    @field_validator('cv_text', mode='before')
+    @classmethod
+    def sanitize_text(cls, v):
+        """PostgreSQL does not allow null bytes \x00 in text fields."""
+        if isinstance(v, str):
+            return v.replace('\x00', '')
+        return v
+
     @field_validator('weaknesses', mode='before')
     @classmethod
     def empty_list_if_none(cls, v):
