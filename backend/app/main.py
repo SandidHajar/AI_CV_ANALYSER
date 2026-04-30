@@ -21,13 +21,14 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
+# Settings will be loaded inside app initialization
+# settings = get_settings()
 
 app = FastAPI(
-    title=settings.app_name,
+    title="AI CV Analyzer SaaS", # Static title to avoid crash
     description="Production-ready AI CV Analyzer SaaS",
     version="2.0.0",
-    root_path="/_/backend" # Automatically handle the Vercel rewrite prefix
+    root_path="/_/backend"
 )
 
 # Initialize Database
@@ -60,7 +61,12 @@ async def debug_routes():
 
 @app.get("/", tags=["Health"])
 async def health_check():
-    return {"status": "ok", "app": settings.app_name, "version": "2.0.0"}
+    try:
+        settings = get_settings()
+        app_name = settings.app_name
+    except Exception:
+        app_name = "AI CV Analyzer"
+    return {"status": "ok", "app": app_name, "version": "2.0.0"}
 
 @app.post("/extract-text", response_model=TextExtractionResponse)
 async def extract_text(

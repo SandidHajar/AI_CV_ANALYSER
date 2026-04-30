@@ -4,18 +4,29 @@ from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 from app.config.settings import get_settings
 
-settings = get_settings()
-SQLALCHEMY_DATABASE_URL = settings.database_url
+# Use a function to get engine and session to avoid crashing on import if env vars are missing
+def get_engine():
+    settings = get_settings()
+    url = settings.database_url
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+pg8000://", 1)
+    elif url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+pg8000://", 1)
+    
+    connect_args = {"check_same_thread": False} if "sqlite" in url else {}
+    return create_engine(url, connect_args=connect_args)
 
-# Force pg8000 for PostgreSQL to avoid binary compatibility issues on Vercel
-if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
-    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
-elif SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
-    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
+# These will be initialized lazily
+_engine = None
+_SessionLocal = None
 
-connect_args = {"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URL else {}
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def get_session_local():
+    global _engine, _SessionLocal
+    if _engine is None:
+        _engine = get_engine()
+        _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+    return _SessionLocal
+
 Base = declarative_base()
 
 class User(Base):
@@ -46,6 +57,7 @@ class Analysis(Base):
     owner = relationship("User", back_populates="analyses")
 
 def get_db():
+    SessionLocal = get_session_local()
     db = SessionLocal()
     try:
         yield db
@@ -53,4 +65,5 @@ def get_db():
         db.close()
 
 def init_db():
+    engine = get_engine()
     Base.metadata.create_all(bind=engine)

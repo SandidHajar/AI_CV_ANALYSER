@@ -7,10 +7,10 @@ class Settings(BaseSettings):
     openai_timeout: int = 15
     
     # Database
-    database_url: str
+    database_url: str = "sqlite:///./test.db"
     
     # Auth
-    jwt_secret: str
+    jwt_secret: str = "dev_secret_key_change_in_production"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 # 1 day
 
