@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { Upload, FileText, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { uploadCV, analyzeCV, checkAnalysisStatus } from '../services/api';
+import { useNotification } from '../components/Notification';
 
 const Home = ({ setAnalysisResult }) => {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -45,23 +47,27 @@ const Home = ({ setAnalysisResult }) => {
       const response = await analyzeCV(text);
       
       if (response.job_id) {
+        showNotification('Analysis job started!', 'info');
         setStatus('Analysis job queued. Waiting for completion...');
         const result = await pollStatus(response.job_id);
         setAnalysisResult(result);
+        showNotification('Analysis complete!', 'success');
         navigate('/dashboard');
       } else {
         // Fallback for immediate response (if backend hasn't fully updated yet)
         setAnalysisResult(response);
+        showNotification('Analysis complete!', 'success');
         navigate('/dashboard');
       }
     } catch (err) {
       console.error(err);
       if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-        alert('Authentication required. Please implement login or provide a valid token.');
+        showNotification('Session expired. Please login again.', 'error');
+        navigate('/login');
       } else if (err.response && err.response.status === 429) {
-        alert('Daily limit reached. Please wait until tomorrow.');
+        showNotification('Daily limit reached. Please wait until tomorrow.', 'error');
       } else {
-        alert('Error during analysis. Please ensure backend is running and you are logged in.');
+        showNotification('Error during analysis. Please try again.', 'error');
       }
     } finally {
       setLoading(false);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser, registerUser } from '../services/api';
+import { useNotification } from '../components/Notification';
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -8,6 +9,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,14 +18,15 @@ const Login = () => {
       if (isLogin) {
         const data = await loginUser(email, password);
         localStorage.setItem('token', data.access_token);
+        showNotification('Login successful!', 'success');
         navigate('/app');
       } else {
         await registerUser(email, password);
-        alert('Registration successful! Please login.');
+        showNotification('Registration successful! Please login.', 'success');
         setIsLogin(true);
       }
     } catch (err) {
-      alert(err.response?.data?.detail || 'An error occurred');
+      showNotification(err.response?.data?.detail || 'An error occurred', 'error');
     } finally {
       setLoading(false);
     }
