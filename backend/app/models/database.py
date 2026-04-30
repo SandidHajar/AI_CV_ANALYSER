@@ -5,21 +5,40 @@ from datetime import datetime
 from app.config.settings import get_settings
 
 import os
+import ssl
 
 # Use a function to get engine and session to avoid crashing on import if env vars are missing
 def get_engine():
     settings = get_settings()
     url = settings.database_url
     
-    # Vercel doesn't play well with psycopg2-binary sometimes, so we use pure-python pg8000 there.
-    # Locally, we use standard psycopg2 which is already installed.
-    if os.environ.get("VERCEL"):
+    connect_args = {}
+    
+    if "sqlite" in url:
+        connect_args = {"check_same_thread": False}
+    elif os.environ.get("VERCEL"):
+        # On Vercel, use pg8000 (pure Python) instead of psycopg2 (needs C compilation)
         if url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+pg8000://", 1)
         elif url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+pg8000://", 1)
+        
+        # pg8000 doesn't understand ?sslmode=require — strip it and use ssl_context instead
+        if "sslmode=" in url:
+            # Remove sslmode parameter from URL
+            from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+            parsed = urlparse(url)
+            params = parse_qs(parsed.query)
+            params.pop("sslmode", None)
+            new_query = urlencode(params, doseq=True)
+            url = urlunparse(parsed._replace(query=new_query))
+        
+        # Enable SSL for pg8000 (required by Neon and most cloud PostgreSQL providers)
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        connect_args["ssl_context"] = ssl_context
     
-    connect_args = {"check_same_thread": False} if "sqlite" in url else {}
     return create_engine(url, connect_args=connect_args)
 
 # These will be initialized lazily
