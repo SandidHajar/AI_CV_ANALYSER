@@ -70,8 +70,8 @@ async def start_analysis(
     db.commit()
     
     # 3. Queue Background Task
-    from app.models.database import SessionLocal
-    background_tasks.add_task(run_analysis_task, job_id, request.cv_text, SessionLocal)
+    from app.models.database import get_session_local
+    background_tasks.add_task(run_analysis_task, job_id, request.cv_text, get_session_local)
     
     return {"job_id": job_id, "status": "pending", "message": "Analysis started in background"}
 
