@@ -44,10 +44,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routes
+# Include routes for local development (no prefix)
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(analyze_router, tags=["Analysis"])
 app.include_router(upload_router, tags=["Upload"])
+
+# Include routes for Vercel production (with /_/backend prefix matching rewrites)
+app.include_router(auth_router, prefix="/_/backend/auth", tags=["Authentication"])
+app.include_router(analyze_router, prefix="/_/backend", tags=["Analysis"])
+app.include_router(upload_router, prefix="/_/backend", tags=["Upload"])
 
 @app.get("/", tags=["Health"])
 async def health_check():
