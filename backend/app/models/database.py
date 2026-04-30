@@ -4,10 +4,20 @@ from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 from app.config.settings import get_settings
 
+import os
+
 # Use a function to get engine and session to avoid crashing on import if env vars are missing
 def get_engine():
     settings = get_settings()
     url = settings.database_url
+    
+    # Vercel doesn't play well with psycopg2-binary sometimes, so we use pure-python pg8000 there.
+    # Locally, we use standard psycopg2 which is already installed.
+    if os.environ.get("VERCEL"):
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+pg8000://", 1)
+        elif url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+pg8000://", 1)
     
     connect_args = {"check_same_thread": False} if "sqlite" in url else {}
     return create_engine(url, connect_args=connect_args)
