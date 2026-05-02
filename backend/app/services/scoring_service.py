@@ -95,8 +95,13 @@ class ScoringService:
         
         # If AI says Senior but rules say Junior, stay Junior or Mid
         levels = ["Junior", "Mid", "Senior"]
-        rule_idx = levels.index(rule_level)
-        ai_idx = levels.index(ai_level)
+        
+        # Safe indexing to avoid ValueError
+        rule_level_clean = rule_level if rule_level in levels else "Junior"
+        ai_level_clean = ai_level if ai_level in levels else "Junior"
+        
+        rule_idx = levels.index(rule_level_clean)
+        ai_idx = levels.index(ai_level_clean)
         
         # Take the most conservative level or at most 1 level higher than rule-based
         final_idx = min(ai_idx, rule_idx + 1)

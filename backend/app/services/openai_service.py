@@ -32,6 +32,7 @@ class OpenAIService:
         """
 
         try:
+            print(f"OpenAI Service: Calling GPT-3.5-Turbo...")
             response = await self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -42,8 +43,10 @@ class OpenAIService:
                 temperature=0.3, # Lower temperature for more consistent results
                 max_tokens=800
             )
+            print(f"OpenAI Service: API call successful.")
 
             result_content = response.choices[0].message.content
+            print(f"OpenAI Service: Content received: {result_content[:100]}...")
             if not result_content:
                 return None
                 

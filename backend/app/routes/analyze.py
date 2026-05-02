@@ -12,31 +12,55 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-async def run_analysis_task(job_id: str, cv_text: str, db_session_factory):
+def run_analysis_task(job_id: str, cv_text: str, db_session_factory_func):
     """Background task to run the analysis and update the DB."""
-    db = db_session_factory()
+    print(f"DEBUG: run_analysis_task (SYNC) ENTERED for JobID {job_id}")
+    
+    # db_session_factory_func is get_session_local
+    session_maker = db_session_factory_func() 
+    db = session_maker() 
+    
     try:
         analysis = db.query(Analysis).filter(Analysis.job_id == job_id).first()
         if not analysis:
+            print(f"DEBUG: Job {job_id} not found in DB!")
             return
             
         analysis.status = "processing"
         db.commit()
+        print(f"DEBUG: Status updated to processing. Starting AI logic...")
         
         # Create a mock request object for the service
         request = CVAnalyzeRequest(cv_text=cv_text)
-        result = await analyze_cv_service(request)
         
+        # Run the async service in a new event loop for this thread
+        import asyncio
+        try:
+            # Check if there's already an event loop (shouldn't be in a new thread, but just in case)
+            result = asyncio.run(analyze_cv_service(request))
+        except Exception as ai_err:
+            print(f"DEBUG: AI Service Execution Error: {ai_err}")
+            raise ai_err
+            
+        print(f"DEBUG: AI logic finished. Saving results...")
         analysis.result = result.dict()
         analysis.score = result.score
         analysis.status = "completed"
         db.commit()
+        print(f"DEBUG: Job {job_id} COMPLETED SUCCESSFULLY.")
     except Exception as e:
-        logger.error(f"Background task failed for job {job_id}: {e}")
-        analysis.status = "failed"
-        db.commit()
+        print(f"DEBUG ERROR in run_analysis_task: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        db.rollback()
+        try:
+            analysis.status = "failed"
+            db.commit()
+        except:
+            pass
     finally:
         db.close()
+        print(f"DEBUG: Session closed for Job {job_id}")
 
 @router.post("/analyze-cv", status_code=status.HTTP_202_ACCEPTED)
 async def start_analysis(
@@ -70,8 +94,19 @@ async def start_analysis(
     db.commit()
     
     # 3. Queue Background Task
+    import threading
+    print(f"API: Starting Thread for JobID {job_id}...")
     from app.models.database import get_session_local
-    background_tasks.add_task(run_analysis_task, job_id, request.cv_text, get_session_local)
+    
+    # Use a standard Python thread to ensure it starts immediately
+    task_thread = threading.Thread(
+        target=run_analysis_task, 
+        args=(job_id, request.cv_text, get_session_local)
+    )
+    task_thread.daemon = True # Ensure thread doesn't block app shutdown
+    task_thread.start()
+    
+    print(f"API: Thread started. Returning 202.")
     
     return {"job_id": job_id, "status": "pending", "message": "Analysis started in background"}
 
@@ -87,8 +122,10 @@ async def get_analysis_status(
     ).first()
     
     if not analysis:
+        print(f"API STATUS: Job {job_id} NOT FOUND.")
         raise HTTPException(status_code=404, detail="Job not found")
         
+    print(f"API STATUS: Job {job_id} status is {analysis.status}")
     return {
         "job_id": analysis.job_id,
         "status": analysis.status,

@@ -30,7 +30,7 @@ app = FastAPI(
     title="AI CV Analyzer SaaS",
     description="Production-ready AI CV Analyzer SaaS",
     version="2.0.0",
-    root_path="/_/backend" if IS_VERCEL else ""
+    root_path="/api" if IS_VERCEL else ""
 )
 
 # Initialize Database
@@ -51,7 +51,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routes (root_path will handle the /_/backend prefix automatically)
+# Include routes (root_path will handle the /api prefix automatically)
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(analyze_router, tags=["Analysis"])
 app.include_router(upload_router, tags=["Upload"])

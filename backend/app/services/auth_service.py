@@ -24,8 +24,11 @@ class AuthService:
     def decode_token(self, token: str):
         try:
             payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-            return payload if payload["exp"] >= datetime.utcnow().timestamp() else None
-        except:
+            return payload
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Token decode error: {e}")
+            print(f"Token decode error: {e}")
             return None
 
 auth_service = AuthService()

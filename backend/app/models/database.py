@@ -16,22 +16,22 @@ def get_engine():
     
     if "sqlite" in url:
         connect_args = {"check_same_thread": False}
-    elif os.environ.get("VERCEL"):
-        # On Vercel, use pg8000 (pure Python) instead of psycopg2 (needs C compilation)
+    elif "postgresql" in url or "postgres" in url:
+        # Use pg8000 (pure Python) instead of psycopg2 (needs C compilation)
         if url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+pg8000://", 1)
         elif url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+pg8000://", 1)
         
         # pg8000 doesn't understand ?sslmode=require — strip it and use ssl_context instead
-        if "sslmode=" in url:
-            # Remove sslmode parameter from URL
-            from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-            parsed = urlparse(url)
-            params = parse_qs(parsed.query)
-            params.pop("sslmode", None)
-            new_query = urlencode(params, doseq=True)
-            url = urlunparse(parsed._replace(query=new_query))
+        if "?" in url:
+            # More robust removal: just strip everything after the ? if it contains sslmode
+            # or keep other params if you prefer, but Neon usually only needs sslmode
+            base_url, query = url.split("?", 1)
+            if "sslmode" in query:
+                url = base_url
+            else:
+                url = f"{base_url}?{query}"
         
         # Enable SSL for pg8000 (required by Neon and most cloud PostgreSQL providers)
         ssl_context = ssl.create_default_context()

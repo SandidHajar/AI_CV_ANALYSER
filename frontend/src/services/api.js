@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const isProd = import.meta.env.PROD;
 const api = axios.create({
-  baseURL: isProd ? '/_/backend' : 'http://localhost:8000',
+  baseURL: isProd ? '/api' : 'http://localhost:8000',
 });
 
 // Add a request interceptor to include the JWT token
